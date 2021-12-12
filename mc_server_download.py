@@ -7,30 +7,6 @@ url = 'https://www.minecraft.net/en-us/download/server'
 scrape_timeout = 3
 download_timeout = 15
 
-# get webpage
-r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'},
-                 timeout=scrape_timeout)  # GET request to url
-if r.status_code != 200:
-    print('error: webpage status code not 200, local server jar is untouched, exiting.')
-    quit()
-
-# locate server jar
-soup = BeautifulSoup(r.content, features="html.parser")
-server_jar_string = soup.find('a', href=re.compile(r'server\.jar')).get('href')
-
-# download server jar
-r_server = requests.get(server_jar_string, headers={'User-Agent': 'Mozilla/5.0'}, timeout=download_timeout, stream=True)
-if r_server.status_code != 200:
-    print('error: server file status code not 200, local server jar is untouched, exiting.')
-    quit()
-
-# overwrite server jar
-try:
-    open('server.jar', 'wb').write(r_server.content)
-except:
-    print('Error occurred when overwriting server jar. Link:', server_jar_string)
-
-# validate server jar
 def hash_file(filename):  # https://www.programiz.com/python-programming/examples/hash-file
     """This function returns the SHA-1 hash
     of the file passed into it"""
@@ -51,10 +27,42 @@ def hash_file(filename):  # https://www.programiz.com/python-programming/example
     # return the hex representation of digest
     return h.hexdigest()
 
+# get webpage
+r = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'},
+                 timeout=scrape_timeout)  # GET request to url
+if r.status_code != 200:
+    print('error: webpage status code not 200, local server jar is untouched, exiting mc_server_download.')
+    quit()
+
+# locate server jar
+soup = BeautifulSoup(r.content, features="html.parser")
+server_jar_string = soup.find('a', href=re.compile(r'server\.jar')).get('href')
+
+# check if server jar is up to date by comparing sha-1 values
+sha1_hash = hash_file('server.jar')
+if sha1_hash in server_jar_string:
+    print('Local server jar is up to date, exiting mc_server_download.')
+    quit()
+else:
+    print('New version found, initiating download.')
+
+# download server jar
+r_server = requests.get(server_jar_string, headers={'User-Agent': 'Mozilla/5.0'}, timeout=download_timeout, stream=True)
+if r_server.status_code != 200:
+    print('error: server file status code not 200, local server jar is untouched, exiting mc_server_download.')
+    quit()
+
+# overwrite server jar
+try:
+    open('server.jar', 'wb').write(r_server.content)
+except:
+    print('Error occurred when overwriting server jar. Link:', server_jar_string)
+
+# validate server jar
 sha1_hash = hash_file('server.jar')
 
 if sha1_hash not in server_jar_string:
-    print('Jar file validation failed, local server jar should be discarded, exiting. Link:', server_jar_string)
+    print('Jar file validation failed, local server jar should be discarded, exiting mc_server_download. Link:', server_jar_string)
     quit()
 
-print('Server jar update complete, exiting.')
+print('Server jar update complete, exiting mc_server_download.')
